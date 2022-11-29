@@ -45,12 +45,6 @@ citation("BiodiversityR")
 library(betapart)
 citation("betapart")
 
-library(gridExtra)
-citation("gridExtra")
-
-library("ggmap")
-citation("ggmap")
-
 
 ### ---------- SECTION 1. SET UP ---------- ###
 
