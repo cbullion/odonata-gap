@@ -11,7 +11,7 @@
 #
 # Shannon diversity
 #
-# CM Bullion; 17 May 2022; updated 17 May 2022
+# CM Bullion; 17 May 2022; updated 28 November 2022
 #
 ##########################################################
 
@@ -47,6 +47,9 @@ citation("betapart")
 
 library(gridExtra)
 citation("gridExtra")
+
+library("ggmap")
+citation("ggmap")
 
 
 ### ---------- SECTION 1. SET UP ---------- ###
@@ -117,8 +120,7 @@ colSums(GBIF_SUM, na.rm = TRUE)
 colSums(FIELD_SUM, na.rm = TRUE)
 
 # Set up color and point vectors for figures.
-colvec1 <- c("darkorange1", "darkgoldenrod1", "black", "chartreuse4")
-colvec2 <- c("#FDE725FF", "#2D708EFF", "#481567FF", "#73D055FF")
+colvec2 <- c("#2d708eFF", "#c9c93fFF", "#95ac5aFF", "#618e74FF", "#2d708eFF")
 pchvec1 <- c(16, 17, 15, 18)
 pchvec2 <- c(19, 15, 4, 9)
 ltyvec <- c(1, 2, 3, 4)
@@ -212,7 +214,7 @@ SHANNON_COUNTY_RES <- diversity(SHANNON_COUNTY)
 SHANNON_METHOD <- subset (TOTAL_COMP, select = -c(1))
 SHANNON_METHOD <- rowsum(SHANNON_METHOD[,c(2:88)],SHANNON_METHOD$Method,na.rm=T)
 SHANNON_METHOD_RES <- diversity(SHANNON_METHOD) # Unstructured 3.539527 | Structured 2.864405 
-### Plots - Export as 400x400
+
 plottitle = "Shannon diversity by location"
 make.sorted.plot(SHANNON_COUNTY_RES)
 plottitle = "Shannon diversity by sampling method"
@@ -288,11 +290,12 @@ summary(RICH_GLM2)
 ### Separated
 RICH_BOX1 <- ggplot(SUB_RICH, aes(x=as.factor(Method), y=as.numeric(richness), fill=Method)) + 
   geom_boxplot() +
-  facet_wrap(~county, scale="free") +
+  facet_wrap(~county, nrow = 1, scale="fixed") +
   labs(title="Species richness by method per county", x="Sampling Method", y="Species Richness") +
   theme_bw() +
   theme(legend.key.size = unit(2, 'cm')) +
-  guides(color=guide_legend("Sampling Method"))
+  guides(color=guide_legend("Sampling Method")) +
+  scale_fill_manual(values=c("#fde725","#2d708e"))
 RICH_BOX1
 
 # plot(RICH_BOX1)
@@ -302,7 +305,8 @@ RICH_BOX2 <- ggplot(SUB_RICH, aes(x=county, y=as.numeric(richness), fill=Method)
   labs(title="Species richness by method per county", x="Sampling Method", y="Species Richness") +
   theme_bw() +
   theme(legend.key.size = unit(2, 'cm')) +
-  guides(color=guide_legend("Sampling Method"))
+  guides(color=guide_legend("Sampling Method")) +
+  scale_fill_manual(values=c("#fde725","#2d708e"))
 plot(RICH_BOX2)
 
 # T.Test
@@ -379,11 +383,15 @@ summary(AB_GLM2)
 ### Separated
 AB_BOX1 <- ggplot(TOT_AB, aes(x=as.factor(Method), y=as.numeric(abundance), fill=Method)) + 
   geom_boxplot() +
-  facet_wrap(~county, scale="free")
+  facet_wrap(~county, nrow = 1, scale="fixed") +
+  labs(title="Odonate abundance by method per county", x="Sampling Method", y="Abundance") +
+  theme(legend.key.size = unit(2, 'cm')) +
+  scale_fill_manual(values=c("#fde725","#2d708e"))
 plot(AB_BOX1)
 ### Combined
 AB_BOX2 <- ggplot(TOT_AB, aes(x=county, y=as.numeric(abundance), fill=Method)) + 
-  geom_boxplot()
+  geom_boxplot() +
+  scale_fill_manual(values=c("#fde725","#2d708e"))
 plot(AB_BOX2)
 
 # T.Test
@@ -427,14 +435,15 @@ stressplot(NMDS)
 plot(NMDS)
 summary(NMDS)
 # add ellipsoids with ordiellipse
-ordiellipse(NMDS, ENV.MATRIX$Method, draw="polygon", col="#FFC000",kind="sd", conf=0.95, label=FALSE, show.groups = "Unstructured")
-ordiellipse(NMDS, ENV.MATRIX$Method, draw="polygon", col="#003976",kind="sd", conf=0.95, label=FALSE, show.groups = "Structured") 
+ordiellipse(NMDS, ENV.MATRIX$Method, draw="polygon", col="#fde725",kind="sd", conf=0.95, label=FALSE, show.groups = "Unstructured")
+ordiellipse(NMDS, ENV.MATRIX$Method, draw="polygon", col="#2d708e",kind="sd", conf=0.95, label=FALSE, show.groups = "Structured") 
 # display sampling Method as shapes. Unstructured = Circle. Structured = Triangle. 
 points(NMDS, display="sites", select=which(ENV.MATRIX$Method=="Unstructured"),pch=19, col="#FFC000")
 points(NMDS, display="sites", select=which(ENV.MATRIX$Method=="Structured"), pch=17, col="#003976")
 # legend
-legend(1.46,1.45, title=NULL, pch=c(19,17,15,25), col=c("#FFC000","#003976"), cex=.7, legend=c("Citizen Science", "In-Person"))
-
+# legend(1.46,1.45, title=NULL, pch=c(19,17,15,25), col=c("#fde725","#2d708e"), cex=.7, legend=c("Citizen Science", "In-Person"))
+legend(x = "topright", title=NULL, pch=c(19,17,15,25), col=c("#fde725","#2d708e"), cex=.7, legend=c("Citizen Science", "In-Person"))
+?legend
 
 # ANOSIM, p = 0.0679
 ano = anosim(COM.MATRIX, ENV.MATRIX$Method, distance = "bray", permutations = 9999)
@@ -485,4 +494,3 @@ boxplot(BETA_SOR, ylab = "Distance to median")
 #####             diff        lwr       upr     p adj
 ##### Structured-Unstructured -0.1006139 -0.4094017 0.2081738 0.4662198
 TukeyHSD(BETA_SOR, which = "group", conf.level = 0.95)
-
