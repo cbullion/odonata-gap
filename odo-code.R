@@ -12,6 +12,7 @@
 # Shannon diversity
 #
 # CM Bullion; 17 May 2022; updated 28 November 2022
+# Updated by C. Bahlai 6/7/24
 #
 ##########################################################
 
@@ -87,14 +88,14 @@ FIELD_OBS$county[FIELD_OBS$county == 'Wise'] <- 'E'
 
 # Create matrix
 GBIF_COMP <- subset(GBIF_OBS, month == 6 | month == 7 | month == 8, select=c(county, Method, month, species))
-GBIF_COMP <- subset(GBIF_OBS, select = c("species", "county", "Method"))
-FIELD_COMP <- subset(FIELD_OBS, select = c("species", "county", "Method"))
+GBIF_COMP <- subset(GBIF_OBS, select = c("species", "county", "month", "Method"))
+FIELD_COMP <- subset(FIELD_OBS, select = c("species", "county","month", "Method"))
 ### Aggregate dataset. 
-GBIF_COMP <- count(GBIF_COMP, c("species", "county","Method"))
-GBIF_COMP <- reshape(GBIF_COMP, idvar = c("county", "Method"), timevar = "species", direction = "wide")
-FIELD_COMP <- count(FIELD_COMP, c("species", "county", "Method"))
-FIELD_COMP <- reshape(FIELD_COMP, idvar = c("county", "Method"), timevar = "species", direction = "wide")
-GBIF_COMP[3] <- NULL                  # Removing NULL columns.
+GBIF_COMP <- count(GBIF_COMP, c("species", "county","month","Method"))
+GBIF_COMP <- reshape(GBIF_COMP, idvar = c("county", "month","Method"), timevar = "species", direction = "wide")
+FIELD_COMP <- count(FIELD_COMP, c("species", "county","month", "Method"))
+FIELD_COMP <- reshape(FIELD_COMP, idvar = c("county","month", "Method"), timevar = "species", direction = "wide")
+GBIF_COMP[4] <- NULL                  # Removing NULL columns.
 
 # Combine datasets.
 TOTAL_COMP <- rbind.fill(GBIF_COMP,FIELD_COMP)
@@ -103,6 +104,8 @@ TOTAL_COMP[is.na(TOTAL_COMP)] = 0     # Replacing NAs with 0s
 # Change County and Source to factors
 TOTAL_COMP <- within(TOTAL_COMP, {county <- factor(county)})
 TOTAL_COMP <- within(TOTAL_COMP, {Method <- factor(Method)})
+TOTAL_COMP <- within(TOTAL_COMP, {month <- factor(month)})
+
 
 # Check data structure
 str(TOTAL_COMP)
@@ -111,8 +114,8 @@ tail(TOTAL_COMP)
 dim(TOTAL_COMP)
 
 # Column sums
-GBIF_SUM <- GBIF_COMP[3:84]
-FIELD_SUM <-FIELD_COMP[3:29]
+GBIF_SUM <- GBIF_COMP[4:85]
+FIELD_SUM <-FIELD_COMP[4:30]
 colSums(GBIF_SUM, na.rm = TRUE)
 colSums(FIELD_SUM, na.rm = TRUE)
 
@@ -148,7 +151,7 @@ theme_set(theme_bw())
 
 
 
-### ---------- SECTION 2. SHANNON DIVERSITY ---------- ###
+### ---------- SECTION 2. SHANNON DIVERSITY and species accumulation ---------- ###
 
 # Comparing richness by method.
 
@@ -157,59 +160,87 @@ levels(TOTAL_COMP$Method)
 RARE_SOURCE_S <- TOTAL_COMP[which(TOTAL_COMP$Method == "Structured"),]
 RARE_SOURCE_U <- TOTAL_COMP[which(TOTAL_COMP$Method == "Unstructured"),]
 
-SP_SOURCE_S <- specaccum(RARE_SOURCE_S[3:89], method = "rarefaction", permutations = 100, gamma = "jack2")
-SP_SOURCE_U <- specaccum(RARE_SOURCE_U[3:89], method = "rarefaction", permutations = 100, gamma = "jack2")
+SP_SOURCE_S <- specaccum(RARE_SOURCE_S[4:89], method = "rarefaction", permutations = 100, gamma = "jack2")
+SP_SOURCE_U <- specaccum(RARE_SOURCE_U[4:89], method = "rarefaction", permutations = 100, gamma = "jack2")
+
+#estimate total richness
+mod1 <- fitspecaccum(SP_SOURCE_S, "lomolino")
+coef(mod1)
+mod2 <- fitspecaccum(SP_SOURCE_U, "lomolino")
+coef(mod2)
+
+
 
 plot(SP_SOURCE_S, pch = 19, col = "#FDE725FF", xvar = c("individuals"), lty = 1, lwd = 3,
      ylab = "Species Richness", xlab = "Number of Individuals", xlim = c(0, 1000), ylim = c(0, 100))
 plot(SP_SOURCE_U, add = TRUE, pch = 15, xvar = c("individuals"), lty = 2, lwd = 3, col = "#2D708EFF")
-legend("topleft", legend = c("Structured","Community Sci."), lty = ltyvec, bty = "n", lwd = 3, col = colvec2)
+legend("topleft", legend = c("Unstructured","Structured"), lty = ltyvec, bty = "n", lwd = 3, col = colvec2)
 
 # Rarefaction plots
 plot(SP_SOURCE_S)
-data <- data.frame(Sites=SP_SOURCE_S$sites, Richness=SP_SOURCE_S$richness, SD=SP_SOURCE_S$sd)
+data <- data.frame(Individuals=SP_SOURCE_S$individuals, Richness=SP_SOURCE_S$richness, SD=SP_SOURCE_S$sd)
 RARE_SOURCE_S <- ggplot() +
-  geom_point(data, mapping=aes(x=Sites, y=Richness)) +
-  geom_line(data, mapping=aes(x=Sites, y=Richness)) +
-  geom_ribbon(data, mapping=aes(x=Sites, ymin=(Richness-2*SD),ymax=(Richness+2*SD)),alpha=0.2) +
+  geom_point(data, mapping=aes(x=Individuals, y=Richness)) +
+  geom_line(data, mapping=aes(x=Individuals, y=Richness)) +
+  geom_ribbon(data, mapping=aes(x=Individuals, ymin=(Richness-2*SD),ymax=(Richness+2*SD)),alpha=0.2) +
   theme_bw() +
   labs(title="Species Accumulation (Structured)")
   
 
 plot(SP_SOURCE_U)
-data2 <- data.frame(Sites=SP_SOURCE_U$sites, Richness=SP_SOURCE_U$richness, SD=SP_SOURCE_U$sd)
+data2 <- data.frame(Individuals=SP_SOURCE_U$individuals, Richness=SP_SOURCE_U$richness, SD=SP_SOURCE_U$sd)
 RARE_SOURCE_U <- ggplot() +
-  geom_point(data2, mapping=aes(x=Sites, y=Richness)) +
-  geom_line(data2, mapping=aes(x=Sites, y=Richness)) +
-  geom_ribbon(data2, mapping=aes(x=Sites, ymin=(Richness-2*SD),ymax=(Richness+2*SD)),alpha=0.2) +
+  geom_point(data2, mapping=aes(x=Individuals, y=Richness)) +
+  geom_line(data2, mapping=aes(x=Individuals, y=Richness)) +
+  geom_ribbon(data2, mapping=aes(x=Individuals, ymin=(Richness-2*SD),ymax=(Richness+2*SD)),alpha=0.2) +
   theme_bw() +
   labs(title="Species Accumulation (Unstructured)")
 
 grid.arrange(RARE_SOURCE_S, RARE_SOURCE_U, nrow = 1)
 
 
+plot(SP_SOURCE_S)
+
+combined_rare <- ggplot() +
+  geom_point(data, mapping=aes(x=Individuals, y=Richness), col = "#003976", pch=17, cex=2) +
+  geom_line(data, mapping=aes(x=Individuals, y=Richness), col = "#003976") +
+  geom_ribbon(data, mapping=aes(x=Individuals, ymin=(Richness-2*SD),ymax=(Richness+2*SD)),alpha=0.2, fill = "#2D708EFF") +
+  geom_point(data2, mapping=aes(x=Individuals, y=Richness), col="#ffc000", pch=19, cex=2) +
+  geom_line(data2, mapping=aes(x=Individuals, y=Richness), col="#ffc000") +
+  geom_ribbon(data2, mapping=aes(x=Individuals, ymin=(Richness-2*SD),ymax=(Richness+2*SD)),alpha=0.2, fill="#c9c93fFF") +
+  theme_bw() +
+  labs(title="")
+
+#figure 4 in paper
+combined_rare
+
+pdf("cmb_data_gap_Fig4.pdf", height=3, width=4)
+combined_rare
+dev.off()
+
+
 # Species richness for each site
 ###  A  B  C  D  E 
 ### 70 32 18 11 38 
-specnumber(TOTAL_COMP[3:89], groups = TOTAL_COMP$county)
+specnumber(TOTAL_COMP[4:90], groups = TOTAL_COMP$county)
 
 # Species richness for each method
 ### Unstructured Structured 
 ### 82 27
-specnumber(TOTAL_COMP[3:89], groups = TOTAL_COMP$Method)
+specnumber(TOTAL_COMP[4:90], groups = TOTAL_COMP$Method)
 
 # Shannon Diversity
 ### By County
 #####        A        B        C        D        E 
 ##### 3.456312 2.733695 2.530959 1.970978 3.099765 
 SHANNON_COUNTY <- subset (TOTAL_COMP, select = -c(2))
-SHANNON_COUNTY <- rowsum(SHANNON_COUNTY[,c(2:88)],SHANNON_COUNTY$county,na.rm=T)
+SHANNON_COUNTY <- rowsum(SHANNON_COUNTY[,c(3:89)],SHANNON_COUNTY$county,na.rm=T)
 SHANNON_COUNTY_RES <- diversity(SHANNON_COUNTY)
 ### By Method
 #####       Unstructured       Structured 
 ##### 3.539527 2.864405 
 SHANNON_METHOD <- subset (TOTAL_COMP, select = -c(1))
-SHANNON_METHOD <- rowsum(SHANNON_METHOD[,c(2:88)],SHANNON_METHOD$Method,na.rm=T)
+SHANNON_METHOD <- rowsum(SHANNON_METHOD[,c(3:89)],SHANNON_METHOD$Method,na.rm=T)
 SHANNON_METHOD_RES <- diversity(SHANNON_METHOD) # Unstructured 3.539527 | Structured 2.864405 
 
 plottitle = "Shannon diversity by location"
@@ -217,8 +248,73 @@ make.sorted.plot(SHANNON_COUNTY_RES)
 plottitle = "Shannon diversity by sampling method"
 make.sorted.plot(SHANNON_METHOD_RES)
 
+# compute diversity for each observation
+totdiv<- diversity(TOTAL_COMP[4:90])
+
+DIV_GLM1 <- lm(formula = totdiv ~ Method + county + month, data = TOTAL_COMP)
+tidy(DIV_GLM1)
+summary(DIV_GLM1)
+AIC(DIV_GLM1)
+
+DIV_GLM2 <- lm(formula = totdiv ~ Method * county + month, data = TOTAL_COMP)
+tidy(DIV_GLM2)
+summary(DIV_GLM2)
+AIC(DIV_GLM2)
 
 
+# 
+# Call:
+#   lm(formula = totdiv ~ Method * county + month, data = TOTAL_COMP)
+# 
+# Residuals:
+#   Min       1Q   Median       3Q      Max 
+# -1.68543 -0.20178  0.00047  0.24919  1.00883 
+# 
+# Coefficients: (1 not defined because of singularities)
+# Estimate Std. Error t value Pr(>|t|)   
+# (Intercept)                -0.01551    0.85177  -0.018  0.98570   
+# MethodUnstructured          1.37413    0.68502   2.006  0.06207 . 
+# countyB                    -0.06276    0.78662  -0.080  0.93740   
+# countyC                     0.08394    0.72921   0.115  0.90979   
+# countyD                    -0.72119    0.72921  -0.989  0.33739   
+# countyE                     0.37191    0.81874   0.454  0.65575   
+# month5                      1.60913    0.73315   2.195  0.04328 * 
+#   month6                      2.12366    0.68152   3.116  0.00665 **
+#   month7                      1.35503    0.67199   2.016  0.06086 . 
+# month8                      1.71439    0.68152   2.516  0.02294 * 
+#   month9                      0.32055    0.82917   0.387  0.70415   
+# month10                     0.42555    0.99374   0.428  0.67420   
+# month11                    -1.35862    0.99374  -1.367  0.19047   
+# MethodUnstructured:countyB -1.11221    0.92535  -1.202  0.24688   
+# MethodUnstructured:countyC       NA         NA      NA       NA   
+# MethodUnstructured:countyD -1.82747    0.99079  -1.844  0.08371 . 
+# MethodUnstructured:countyE -1.75949    0.95280  -1.847  0.08338 . 
+# ---
+#   Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+# 
+# Residual standard error: 0.7866 on 16 degrees of freedom
+# Multiple R-squared:  0.6855,	Adjusted R-squared:  0.3906 
+# F-statistic: 2.325 on 15 and 16 DF,  p-value: 0.0523
+# 
+# > AIC(DIV_GLM2)
+# [1] 87.2704
+
+
+# FIGURE 5 in manuscript
+DIV_BOX1 <- ggplot(TOTAL_COMP, aes(x=as.factor(Method), y=totdiv, fill=Method)) + 
+  geom_boxplot() +
+  facet_wrap(~county, nrow = 1, scale="fixed") +
+  labs(title="", x="Sampling Method", y="Shannon diversity") +
+  theme_bw() +
+  #theme(legend.key.size = unit(2, 'cm')) +
+  #guides(color=guide_legend("Sampling Method")) +
+  theme(legend.position = "none")+
+  scale_fill_manual(values=c("#fde725","#2d708e"))
+DIV_BOX1
+
+pdf("cmb_data_gap_Fig5.pdf", height=3, width=9)
+DIV_BOX1
+dev.off()
 
 ### ---------- SECTION 3. RICHNESS ---------- ###
 
@@ -285,15 +381,21 @@ summary(RICH_GLM2)
 
 # Generate boxplots
 ### Separated
+# FIGURE 3 in manuscript
 RICH_BOX1 <- ggplot(SUB_RICH, aes(x=as.factor(Method), y=as.numeric(richness), fill=Method)) + 
   geom_boxplot() +
   facet_wrap(~county, nrow = 1, scale="fixed") +
-  labs(title="Species richness by method per county", x="Sampling Method", y="Species Richness") +
+  labs(title="", x="Sampling Method", y="Species Richness") +
   theme_bw() +
-  theme(legend.key.size = unit(2, 'cm')) +
-  guides(color=guide_legend("Sampling Method")) +
+  #theme(legend.key.size = unit(2, 'cm')) +
+  #guides(color=guide_legend("Sampling Method")) +
+  theme(legend.position = "none")+
   scale_fill_manual(values=c("#fde725","#2d708e"))
 RICH_BOX1
+
+pdf("cmb_data_gap_Fig3.pdf", height=3, width=9)
+RICH_BOX1
+dev.off()
 
 # plot(RICH_BOX1)
 ### Combined
@@ -378,13 +480,23 @@ summary(AB_GLM2)
 
 # Generate boxplots
 ### Separated
+
+#Figure 6 in V1 on MS, now figure 2
 AB_BOX1 <- ggplot(TOT_AB, aes(x=as.factor(Method), y=as.numeric(abundance), fill=Method)) + 
   geom_boxplot() +
   facet_wrap(~county, nrow = 1, scale="fixed") +
-  labs(title="Odonate abundance by method per county", x="Sampling Method", y="Abundance") +
-  theme(legend.key.size = unit(2, 'cm')) +
+  labs(title="", x="Sampling Method", y="Abundance") +
+  #theme(legend.key.size = unit(2, 'cm')) +
+  theme(legend.position = "none")+
   scale_fill_manual(values=c("#fde725","#2d708e"))
 plot(AB_BOX1)
+
+pdf("cmb_data_gap_Fig2.pdf", height=3, width=9)
+AB_BOX1
+dev.off()
+
+
+
 ### Combined
 AB_BOX2 <- ggplot(TOT_AB, aes(x=county, y=as.numeric(abundance), fill=Method)) + 
   geom_boxplot() +
@@ -401,34 +513,39 @@ ABUND_TT1
 
 ### ---------- SECTION 5. COMPOSITION ---------- ###
 
-# Subset dataset. 
-GBIF_COMP <- subset(GBIF_OBS, month == 6 | month == 7 | month == 8, select=c(county, Method, month, species))
-GBIF_COMP <- subset(GBIF_OBS, select = c("species", "county", "Method"))
-FIELD_COMP <- subset(FIELD_OBS, select = c("species", "county", "Method"))
+# # Subset dataset.
+# GBIF_COMP <- subset(GBIF_OBS, month == 6 | month == 7 | month == 8, select=c(county, Method, month, species))
+# GBIF_COMP <- subset(GBIF_OBS, select = c("species", "county", "Method"))
+# FIELD_COMP <- subset(FIELD_OBS, select = c("species", "county", "Method"))
+# 
+# # Aggregate dataset.
+# GBIF_COMP <- count(GBIF_COMP, c("species", "county","Method"))
+# GBIF_COMP <- reshape(GBIF_COMP, idvar = c("county", "Method"), timevar = "species", direction = "wide")
+# FIELD_COMP <- count(FIELD_COMP, c("species", "county", "Method"))
+# FIELD_COMP <- reshape(FIELD_COMP, idvar = c("county", "Method"), timevar = "species", direction = "wide")
+# 
+# # Removing NULL columns.
+# GBIF_COMP[3] <- NULL
+# 
+# # Combine datasets.
+# TOTAL_COMP <- rbind.fill(GBIF_COMP,FIELD_COMP)
+# TOTAL_COMP[is.na(TOTAL_COMP)] = 0     # Replacing NAs with 0s
 
-# Aggregate dataset. 
-GBIF_COMP <- count(GBIF_COMP, c("species", "county","Method"))
-GBIF_COMP <- reshape(GBIF_COMP, idvar = c("county", "Method"), timevar = "species", direction = "wide")
-FIELD_COMP <- count(FIELD_COMP, c("species", "county", "Method"))
-FIELD_COMP <- reshape(FIELD_COMP, idvar = c("county", "Method"), timevar = "species", direction = "wide")
+cuts<-rowSums(TOTAL_COMP[4:90])
 
-# Removing NULL columns.
-GBIF_COMP[3] <- NULL
-
-# Combine datasets.
-TOTAL_COMP <- rbind.fill(GBIF_COMP,FIELD_COMP)
-TOTAL_COMP[is.na(TOTAL_COMP)] = 0     # Replacing NAs with 0s
+#remove singletons
+TOTAL_COMP_S<-TOTAL_COMP[which(cuts>1),]
 
 # Create matrix
-ENV.MATRIX <- TOTAL_COMP[c(1:2)]      # Environmental variables
-COM.MATRIX <- TOTAL_COMP[c(3:89)]     # Community variables
+ENV.MATRIX <- TOTAL_COMP_S[c(1:3)]      # Environmental variables
+COM.MATRIX <- TOTAL_COMP_S[c(4:90)]     # Community variables
 
 
 # NMDS | Stress: 0.03141493 
 NMDS <- metaMDS(COM.MATRIX, distance="bray", k=3, autotransform=FALSE, trymax=1000)
 stressplot(NMDS)
 
-# NMDS Visualization
+# NMDS Visualization- figure 6
 plot(NMDS)
 summary(NMDS)
 # add ellipsoids with ordiellipse
@@ -438,9 +555,26 @@ ordiellipse(NMDS, ENV.MATRIX$Method, draw="polygon", col="#2d708e",kind="sd", co
 points(NMDS, display="sites", select=which(ENV.MATRIX$Method=="Unstructured"),pch=19, col="#FFC000")
 points(NMDS, display="sites", select=which(ENV.MATRIX$Method=="Structured"), pch=17, col="#003976")
 # legend
-# legend(1.46,1.45, title=NULL, pch=c(19,17,15,25), col=c("#fde725","#2d708e"), cex=.7, legend=c("Citizen Science", "In-Person"))
-legend(x = "topright", title=NULL, pch=c(19,17,15,25), col=c("#fde725","#2d708e"), cex=.7, legend=c("Citizen Science", "In-Person"))
-?legend
+# legend(1.46,1.45, title=NULL, pch=c(19,17,15,25), col=c("#fde725","#2d708e"), cex=.7, legend=c("Unstructured", "Structured"))
+legend(x = "topright", title=NULL, pch=c(19,17,15,25), col=c("#fde725","#2d708e"), cex=1, legend=c("Unstructured", "Structured"))
+
+pdf("cmb_data_gap_Fig6.pdf", height=4, width=5)
+plot(NMDS)
+# add ellipsoids with ordiellipse
+ordiellipse(NMDS, ENV.MATRIX$Method, draw="polygon", col="#fde725",kind="sd", conf=0.95, label=FALSE, show.groups = "Unstructured")
+ordiellipse(NMDS, ENV.MATRIX$Method, draw="polygon", col="#2d708e",kind="sd", conf=0.95, label=FALSE, show.groups = "Structured") 
+# display sampling Method as shapes. Unstructured = Circle. Structured = Triangle. 
+points(NMDS, display="sites", select=which(ENV.MATRIX$Method=="Unstructured"),pch=19, col="#FFC000")
+points(NMDS, display="sites", select=which(ENV.MATRIX$Method=="Structured"), pch=17, col="#003976")
+#text(NMDS, display="species", cex=0.7)
+
+# legend
+# legend(1.46,1.45, title=NULL, pch=c(19,17,15,25), col=c("#fde725","#2d708e"), cex=.7, legend=c("Unstructured", "Structured"))
+legend(x = "topright", title=NULL, pch=c(19,17,15,25), col=c("#FFC000","#003976"), cex=0.8, legend=c("Unstructured", "Structured"))
+
+dev.off()
+
+
 
 # ANOSIM, p = 0.0679
 ano = anosim(COM.MATRIX, ENV.MATRIX$Method, distance = "bray", permutations = 9999)
@@ -448,7 +582,7 @@ ano
 
 
 # ADONIS, p = 0.07
-AD_COMP<-adonis2(COM.MATRIX ~ Method, data = ENV.MATRIX, permutations = 999, method="bray")
+AD_COMP<-adonis2(COM.MATRIX ~ Method+month+county, data = ENV.MATRIX, permutations = 999, method="bray")
 AD_COMP
 
 
