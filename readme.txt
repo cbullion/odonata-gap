@@ -80,3 +80,7 @@ scientific_name - Scientific name of observation
 taxon_genus_name - Genus name of insect
 taxon_faily_name - Family name of insect
 taxon_suborder_name - Suborder of insect
+
+------
+observations-453205-1.csv
+All iNatuarlist records for odonata before 2020. Downloaded from:  https://www.inaturalist.org/observations/export using query: quality_grade=any&identifications=any&swlat=32.895085020395925&swlng=-87.36211782837336&nelat=43.5937587039707&nelng=-74.50811392212336&taxon_id=47792&verifiable=true&d2=2020-01-01&spam=false
