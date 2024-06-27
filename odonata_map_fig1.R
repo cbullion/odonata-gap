@@ -1,5 +1,4 @@
 
-
 #create map of inaturalist records of odonated in northeastern united states until end of 2019
 
 library(sf)
@@ -134,3 +133,48 @@ ggplot() +
     panel.background = element_rect(fill = "lightblue", color = NA),
     panel.grid.major = element_line(color = "white", size = 0.5)
   )
+
+
+pdf("cmb_data_gap_Fig1.pdf", height=7, width=9)
+ggplot() +
+  geom_sf(data = world, fill = "cornsilk", color = "gray80") +
+  geom_sf(data = lakes, fill = "lightblue", color = NA) +
+  geom_sf(data = grid_sf, aes(fill = squish(count, range = c(0, 150))), color = NA) +
+  geom_sf(data = states, fill = NA, color = "black") + # Add state boundaries on top
+  geom_sf(data = cities_sf, color = "black", fill="lightskyblue3",size = 5, pch=21) +
+  geom_label(data = cities, aes(x = longitude, y = latitude, label = name), 
+             color = "black", size = 4, fill = "cornsilk", label.size = NA, label.padding = unit(0.15, "lines"), 
+             nudge_y = -0.3, nudge_x = -1.3) + # Add white background to labels
+  geom_sf(data = sites_sf, color = "black", size = 4, pch=18) +
+  geom_text(data = sites, aes(x = longitude, y = latitude, label = name), 
+            color = "black", size = 5, nudge_y = 0.2, nudge_x = 0.3, fontface="bold") +
+  scale_fill_gradientn(
+    name = "Observations",
+    colors = custom_colors,
+    values = custom_values,
+    limits = c(0, 150), # Scale from 0 to 150 observations
+    oob = squish,       # Apply squish to out-of-bounds values
+    na.value = "transparent"  # Handle NA values
+  ) +
+  coord_sf(xlim = c(xmin+0.1, xmax-0.1), ylim = c(ymin+0.1, ymax-0.1), expand = FALSE) + # Zoom to data extent
+  labs(
+    title = "",
+    x = "Longitude",
+    y = "Latitude"
+  ) +
+  annotation_north_arrow(
+    location = "br", 
+    which_north = "true", 
+    style = north_arrow_orienteering(),
+    pad_x = unit(0.25, "in"), 
+    pad_y = unit(0.25, "in"),
+    height = unit(1, "cm"),
+    width = unit(1, "cm")
+  ) +
+  theme_minimal() +
+  theme(
+    panel.background = element_rect(fill = "lightblue", color = NA),
+    panel.grid.major = element_line(color = "white", size = 0.5)
+  )
+
+dev.off()
